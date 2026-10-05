@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f6f3">
+<title>自宅の整理整頓</title>
+<style>
+:root{--bg:#f6f6f3;--card:#fff;--text:#222;--muted:#777;--line:#e5e5e0}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP",sans-serif}
+.app{max-width:720px;margin:auto;min-height:100vh;background:var(--bg)}header{padding:20px 18px 10px;font-weight:700;font-size:22px}
+main{padding:8px 16px 92px}.screen{display:none}.screen.active{display:block}
+.searchbox{display:flex;gap:8px}.searchbox input{flex:1;padding:13px 14px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.btn{border:0;border-radius:11px;padding:11px 14px;background:#222;color:#fff}.btn.secondary{background:#fff;color:#222;border:1px solid var(--line)}
+.section-title{font-size:14px;font-weight:700;margin:22px 2px 10px}
+.card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:14px;margin:9px 0}
+.item-card{display:flex;gap:12px;align-items:center}.thumb{width:58px;height:58px;border-radius:10px;background:#eee;object-fit:cover;flex:none}.thumb.empty{display:grid;place-items:center;color:#aaa;font-size:22px}
+.item-info{min-width:0}.item-name{font-weight:700}.location,.meta{font-size:13px;color:var(--muted);margin-top:4px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.tag{font-size:12px;padding:4px 8px;border-radius:999px;background:#f0f0ec}
+.empty-state{text-align:center;color:var(--muted);padding:35px 10px}
+.tree-row{display:flex;align-items:center;justify-content:space-between;padding:15px 4px;border-bottom:1px solid var(--line)}
+.tree-row span{color:var(--muted)}.back{margin:0 0 10px;background:none;border:0;padding:5px 0;color:#555}
+.form label{display:block;font-size:13px;font-weight:700;margin:15px 0 7px}.form input,.form textarea,.form select{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff}.form textarea{min-height:90px;resize:vertical}
+.photo-preview{width:100%;height:180px;object-fit:cover;border-radius:12px;background:#eee;margin-top:8px}.hidden{display:none!important}
+.actions{display:flex;gap:8px;margin-top:18px}.actions .btn{flex:1}
+.bottom{position:fixed;bottom:0;left:0;right:0;max-width:720px;margin:auto;background:rgba(255,255,255,.96);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:5}
+.nav{border:0;background:none;color:#777;padding:7px 4px}.nav.active{color:#111;font-weight:700}.nav small{display:block;font-size:11px;margin-top:2px}
+.chips{display:flex;flex-wrap:wrap;gap:7px;padding-bottom:4px}.chip{white-space:nowrap;border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 11px;font-size:12px}.chip.active{background:#222;color:#fff}
+.detail-title{font-size:24px;font-weight:800;margin:8px 0}.detail-photo{width:100%;max-height:300px;object-fit:cover;border-radius:15px}
+.small{font-size:12px;color:var(--muted)}.subtle{font-size:13px;color:var(--muted);margin:6px 0 14px}
+.inline{display:flex;gap:8px;align-items:center}.inline>*:first-child{flex:1}
+.location-select{margin-top:8px}
+.location-photo{width:100%;max-height:220px;object-fit:cover;border-radius:12px;margin:8px 0}.manage-actions{display:flex;gap:7px;margin-top:9px}.manage-actions .btn{padding:8px 10px;font-size:12px}.editor{background:#fff;border:1px solid var(--line);border-radius:15px;padding:15px;margin-top:12px}#modalOverlay{position:fixed;inset:0;background:rgba(0,0,0,.42);display:none;align-items:flex-end;justify-content:center;z-index:20}#modalOverlay.show{display:flex}.modal{width:100%;max-width:720px;background:#fff;border-radius:20px 20px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));max-height:85vh;overflow:auto}.modal h3{margin:0 0 14px}.check-list{display:grid;gap:8px}.check-row{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:11px}.check-row input{width:20px;height:20px}.modal-actions{display:flex;gap:8px;margin-top:16px}.modal-actions .btn{flex:1}.location-levels{display:grid;gap:8px} .location-open-target{width:100%;display:flex;align-items:center;justify-content:space-between;text-align:left;border:1px solid var(--line);background:var(--card,#fff);border-radius:12px;padding:13px 14px;font:inherit;color:inherit;cursor:pointer}.location-open-target:active{transform:scale(.99)}
+
+.edit-mode-row{gap:8px}
+.edit-mode-row .location-check{width:42px;min-width:42px;align-self:stretch}
+.edit-mode-row .location-edit-target{min-width:0}
+
+
+.location-row-main{display:flex;align-items:center;gap:9px;min-width:0}
+.drag-handle{font-size:18px;line-height:1;opacity:.55;letter-spacing:-2px;cursor:grab;user-select:none}
+.location-manage-row[draggable="true"]{cursor:grab}
+.location-manage-row.dragging{opacity:.45}
+.location-manage-row[draggable="true"]:active{cursor:grabbing}
+
+#appToast{position:fixed;left:50%;bottom:84px;transform:translate(-50%,20px);opacity:0;pointer-events:none;
+background:rgba(30,30,30,.88);color:#fff;padding:9px 14px;border-radius:999px;font-size:14px;
+transition:opacity .18s ease,transform .18s ease;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.18)}
+#appToast.show{opacity:1;transform:translate(-50%,0)}
+
+/* Cafe-inspired visual refresh */
+:root{--bg:#f3efe7;--card:#fffdf8;--text:#293b32;--muted:#788078;--line:#e5ded1;--espresso:#35483d;--sage:#dce5d7;--clay:#bd795b;--cream:#fbf8f1}
+body{background:radial-gradient(ellipse at 15% 0%,#e7e9dc 0%,transparent 42%),var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP",sans-serif;letter-spacing:.01em}
+.app{background:transparent;max-width:760px}
+header{position:relative;padding:25px 22px 17px;font-size:0;font-weight:500;color:var(--espresso)}
+header:before{content:"AT HOME";display:block;font:600 10px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:.24em;color:var(--clay);margin-bottom:8px}
+header:after{content:"暮らしの、ものの居場所。";display:block;font:700 23px/1.45 Georgia,"Noto Serif JP",serif;letter-spacing:.04em;color:var(--espresso)}
+main{padding:10px 18px 108px}
+.screen{animation:screenIn .28s ease both}@keyframes screenIn{from{opacity:.3;transform:translateY(7px)}to{opacity:1;transform:none}}
+.section-title{font-size:14px;letter-spacing:.08em;color:#68766b;margin:25px 3px 12px}
+.card,.editor{background:var(--card);border:1px solid #e9e2d6;border-radius:20px;box-shadow:0 7px 22px rgba(57,65,49,.045);padding:16px;transition:transform .2s,box-shadow .2s}
+.card:active{transform:scale(.992)}
+.item-card{gap:14px}.thumb{width:68px;height:68px;border-radius:15px;background:#eee9df}.thumb.empty{background:linear-gradient(145deg,#e7e8dc,#f5eee3);color:#829080}
+.item-name{font-size:15px;font-weight:700;letter-spacing:.02em}.location,.meta{color:#7b8379;font-size:12px}
+.tag{background:#e9eee5;color:#5b6b5c;border:1px solid #dfe6db;padding:5px 10px}
+.searchbox{gap:9px}.searchbox input,.form input,.form textarea,.form select{border:1px solid #e3ddcf;border-radius:14px;background:#fffdf9;color:var(--text);padding:13px 14px;outline:none;transition:border-color .2s,box-shadow .2s}
+.searchbox input:focus,.form input:focus,.form textarea:focus,.form select:focus{border-color:#9baa98;box-shadow:0 0 0 3px rgba(145,166,143,.16)}
+.btn{background:var(--espresso);border-radius:999px;padding:12px 17px;font-weight:600;letter-spacing:.03em;box-shadow:0 4px 10px rgba(42,61,48,.12);transition:transform .16s,filter .16s}
+.btn:active{transform:scale(.97);filter:brightness(1.1)}.btn.secondary{background:#f8f5ed;color:#566457;border:1px solid #e4ddcf;box-shadow:none}
+.tree-row{padding:17px 10px;border-bottom:1px solid #e9e3d8;border-radius:12px;transition:background .18s}.tree-row:active{background:#e9eee5}
+.location-open-target,.location-edit-target{border:1px solid #e7e1d5;background:var(--card);border-radius:16px;padding:15px 16px;box-shadow:0 3px 12px rgba(57,65,49,.035);transition:transform .18s,border-color .18s,background .18s}
+.location-open-target:active,.location-edit-target:active{transform:scale(.99);background:#f8f7f0;border-color:#b9c5b5}
+.drag-handle{color:var(--clay);opacity:.8}
+.photo-preview,.location-photo,.detail-photo{border-radius:19px;box-shadow:0 8px 22px rgba(45,54,44,.09)}
+.detail-title{font:700 25px/1.35 Georgia,"Noto Serif JP",serif;color:var(--espresso)}
+.bottom{background:rgba(251,249,243,.94);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid rgba(220,214,201,.85);box-shadow:0 -6px 24px rgba(49,57,46,.05);padding:9px 10px calc(9px + env(safe-area-inset-bottom))}
+.nav{border-radius:15px;color:#92988e;padding:8px 4px;transition:background .2s,color .2s,transform .2s}.nav.active{background:#e5ebdf;color:var(--espresso);font-weight:700;transform:translateY(-2px)}.nav small{font-size:11px;letter-spacing:.04em}
+.chip{border:1px solid #e4dfd4;background:#fffdf8;color:#68766b;border-radius:999px;padding:9px 13px;transition:all .18s}.chip.active{background:var(--espresso);border-color:var(--espresso);color:#fff}
+#modalOverlay{background:rgba(35,45,37,.42);backdrop-filter:blur(4px)}.modal{background:var(--cream);border-radius:25px 25px 0 0;box-shadow:0 -12px 45px rgba(31,42,33,.15)}
+.empty-state{padding:42px 15px;color:#81887e}.back{color:#68766b;font-weight:600;padding:8px 0}
+#appToast{background:var(--espresso);box-shadow:0 7px 22px rgba(35,52,40,.2);letter-spacing:.04em}
+@media(min-width:600px){header{padding-top:34px}main{padding-left:26px;padding-right:26px}.card:hover{box-shadow:0 10px 28px rgba(57,65,49,.08)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+</style>
+</head>
+<body>
+<div class="app">
+<header>自宅の整理整頓</header>
+<main>
+<section id="searchScreen" class="screen active">
+  <div class="searchbox"><input id="searchInput" placeholder="物の名前を検索"><button class="btn" onclick="renderSearch()">検索</button></div>
+  <div class="section-title">タグ</div><div id="tagChips" class="chips"></div>
+  <div class="section-title">部屋</div><div id="roomChips" class="chips"></div>
+  <div id="searchResults"></div>
+</section>
+
+<section id="placeScreen" class="screen"><div id="placeContent"></div></section>
+
+<section id="addScreen" class="screen">
+  <div class="section-title">物を追加</div>
+  <div class="subtle">配置は「部屋 → 収納 → 棚・引き出し」の順に選択できます。タグはタップで複数選択でき、「＋ タグを追加」から新しいタグも登録できます。</div>
+  <form id="itemForm" class="form">
+    <label>品名 *</label><input id="itemName" required placeholder="例：ドライバーセット">
+    <label>配置 *</label>
+    <div id="locationLevels" class="location-levels"></div>
+    <label>タグ</label><div id="addTagChips" class="chips"></div><input id="itemTags" type="hidden">
+    <label>メモ</label><textarea id="itemMemo" placeholder="自由にメモ"></textarea>
+    <label>写真</label><input id="itemPhoto" type="file" accept="image/*" capture="environment">
+    <img id="photoPreview" class="photo-preview hidden">
+    <div class="actions"><button class="btn" type="submit">登録する</button><button class="btn secondary" type="button" onclick="resetItemForm()">クリア</button></div>
+  </form>
+</section>
+
+<section id="detailScreen" class="screen"></section>
+</main>
+<div id="modalOverlay" onclick="if(event.target===this)closeModal()"><div class="modal" id="modalContent"></div></div>
+<nav class="bottom">
+<button class="nav active" data-screen="searchScreen" onclick="showScreen('searchScreen')">🔍<small>探す</small></button>
+<button class="nav" data-screen="placeScreen" onclick="showScreen('placeScreen');renderPlaces()">🏠<small>場所</small></button>
+<button class="nav" data-screen="addScreen" onclick="showScreen('addScreen');populateAddLocation()">＋<small>追加</small></button>
+</nav>
+</div>
+
+
+<div id="appToast" role="status" aria-live="polite"></div>
+<script>
+const KEY='homeOrganizerPhase1';
+let data=JSON.parse(localStorage.getItem(KEY)||'null')||{
+ locations:[
+  {id:'living',name:'リビング',parent:null,type:'room',photo:''},
+  {id:'tv',name:'テレビ台',parent:'living',type:'storage',photo:''},
+  {id:'tv-right',name:'右側引き出し',parent:'tv',type:'drawer',photo:''},
+  {id:'tv-left',name:'左側引き出し',parent:'tv',type:'drawer',photo:''},
+  {id:'bed',name:'寝室',parent:null,type:'room',photo:''},
+  {id:'closet',name:'クローゼット',parent:'bed',type:'storage',photo:''},
+  {id:'closet-upper',name:'上段',parent:'closet',type:'shelf',photo:''},
+  {id:'kitchen',name:'キッチン',parent:null,type:'room',photo:''},
+  {id:'cabinet',name:'食器棚',parent:'kitchen',type:'storage',photo:''},
+  {id:'cabinet-drawer',name:'引き出し',parent:'cabinet',type:'drawer',photo:''}
+ ],
+ tags:['工具','DIY','電池','消耗品','書類','掃除用品','キッチン用品'],
+ items:[
+  {id:'sample1',name:'ドライバーセット',location:'tv-right',tags:['工具','DIY'],memo:'プラス・マイナス各2本',photo:''},
+  {id:'sample2',name:'単4電池',location:'tv-left',tags:['電池','消耗品'],memo:'予備',photo:''}
+ ]
+};
+data.locations.forEach(x=>{if(!x.photo)x.photo='';});
+if(!Array.isArray(data.tags))data.tags=[];
+let currentPlace=null,selectedTag='',selectedRoom='';
+let addPath=[];
+let editPath=[];
+
+function normalizeLocationOrder(){
+ const groups=new Map();
+ data.locations.forEach(x=>{const key=x.parent===null?'__root__':x.parent;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(x)});
+ groups.forEach(list=>{list.sort((a,b)=>(Number.isFinite(a.order)?a.order:0)-(Number.isFinite(b.order)?b.order:0));list.forEach((x,i)=>x.order=i)});
+}
+normalizeLocationOrder();
+let toastTimer=null;
+function showToast(message){
+ const t=document.getElementById('appToast');
+ if(!t)return;
+ t.textContent=message;
+ t.classList.add('show');
+ clearTimeout(toastTimer);
+ toastTimer=setTimeout(()=>t.classList.remove('show'),1800);
+}
+const PHOTO_DB='homeOrganizerPhotos';
+const PHOTO_STORE='photos';
+const photoCache=new Map();
+
+function openPhotoDB(){
+ return new Promise((resolve,reject)=>{
+  const req=indexedDB.open(PHOTO_DB,1);
+  req.onupgradeneeded=()=>req.result.createObjectStore(PHOTO_STORE);
+  req.onsuccess=()=>resolve(req.result);
+  req.onerror=()=>reject(req.error);
+ });
+}
+async function putPhoto(dataUrl){
+ const id='photo:'+crypto.randomUUID();
+ const db=await openPhotoDB();
+ await new Promise((resolve,reject)=>{
+  const tx=db.transaction(PHOTO_STORE,'readwrite');
+  tx.objectStore(PHOTO_STORE).put(dataUrl,id);
+  tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
+ });
+ photoCache.set(id,dataUrl);
+ return id;
+}
+async function getPhoto(id){
+ if(!id)return '';
+ if(!String(id).startsWith('photo:'))return id; // backward compatibility
+ if(photoCache.has(id))return photoCache.get(id);
+ const db=await openPhotoDB();
+ const value=await new Promise((resolve,reject)=>{
+  const tx=db.transaction(PHOTO_STORE,'readonly');
+  const req=tx.objectStore(PHOTO_STORE).get(id);
+  req.onsuccess=()=>resolve(req.result||'');
+  req.onerror=()=>reject(req.error);
+ });
+ photoCache.set(id,value||'');
+ return value||'';
+}
+function photoSrc(id){return photoCache.get(id)||''}
+async function loadAllPhotos(){
+ const refs=[...data.items,...data.locations].map(x=>x.photo).filter(Boolean);
+ await Promise.all(refs.map(async ref=>{
+  if(String(ref).startsWith('data:')){
+   // Migrate old Base64 photos out of localStorage on first launch.
+   try{
+    const migrated=await putPhoto(ref);
+    [...data.items,...data.locations].forEach(x=>{if(x.photo===ref)x.photo=migrated});
+   }catch(e){console.warn('Photo migration failed',e)}
+  }else if(String(ref).startsWith('photo:')){
+   await getPhoto(ref);
+  }
+ }));
+ save();
+}
+function save(){normalizeLocationOrder();localStorage.setItem(KEY,JSON.stringify(data))}
+function loc(id){return data.locations.find(x=>x.id===id)}
+function children(id){return data.locations.filter(x=>x.parent===id).sort((a,b)=>(a.order||0)-(b.order||0))}
+function itemsAt(id){return data.items.filter(x=>x.location===id)}
+function path(id){let a=[],x=loc(id);while(x){a.unshift(x.name);x=loc(x.parent)}return a.join(' → ')}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function escAttr(s){return esc(s).replace(/`/g,'&#96;')}
+function icon(t){return t==='room'?'🏠':t==='storage'?'🗄️':t==='drawer'?'▣':'▤'}
+
+function showScreen(id){
+ document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+ document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.screen===id));
+ if(id==='searchScreen')renderSearch();
+ if(id==='placeScreen')renderPlaces();
+ if(id==='addScreen')renderAddForm(false);
+}
+
+function itemCard(i){
+ const photo=photoSrc(i.photo)?`<img class="thumb" src="${photoSrc(i.photo)}">`:`<div class="thumb empty">📦</div>`;
+ return `<div class="card item-card" onclick="showDetail('${i.id}')">${photo}<div class="item-info"><div class="item-name">${esc(i.name)}</div><div class="location">📍 ${esc(path(i.location))}</div><div class="tags">${(i.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="manage-actions"><button class="btn secondary" onclick="event.stopPropagation();editItem('${i.id}')">編集</button></div></div></div>`;
+}
+function renderSearch(){
+ const q=document.getElementById('searchInput').value.trim().toLowerCase();
+ const rooms=data.locations.filter(x=>x.type==='room');
+ document.getElementById('tagChips').innerHTML=data.tags.map((t,i)=>`<button class="chip ${selectedTag===t?'active':''}" data-i="${i}">${esc(t)}</button>`).join('');
+ document.querySelectorAll('#tagChips button[data-i]').forEach(b=>b.onclick=()=>{selectedTag=selectedTag===data.tags[+b.dataset.i]?'':data.tags[+b.dataset.i];renderSearch()});
+ document.getElementById('roomChips').innerHTML=rooms.map(r=>`<button class="chip ${selectedRoom===r.id?'active':''}" data-room="${r.id}">${esc(r.name)}</button>`).join('');
+ document.querySelectorAll('#roomChips button[data-room]').forEach(b=>b.onclick=()=>{selectedRoom=selectedRoom===b.dataset.room?'':b.dataset.room;renderSearch()});
+ const results=data.items.filter(i=>{
+  const text=!q||i.name.toLowerCase().includes(q);
+  const tag=!selectedTag||(i.tags||[]).includes(selectedTag);
+  const room=!selectedRoom||(i.location===selectedRoom||path(i.location).startsWith(loc(selectedRoom).name+' → '));
+  return text&&tag&&room;
+ });
+ document.getElementById('searchResults').innerHTML=`<div class="section-title">検索結果 ${results.length}件</div>`+(results.length?results.map(itemCard).join(''):`<div class="empty-state">該当する物がありません</div>`);
+}
+function row(x){return `<div class="tree-row" onclick="openPlace('${x.id}')"><b>${icon(x.type)} ${esc(x.name)}${x.photo?' 📷':''}</b><span>›</span></div>`}
+let dragLocationId=null;
+function startLocationDrag(e,id){if(placeMode!=='normal')return;dragLocationId=id;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',id);e.currentTarget.classList.add('dragging')}
+function allowLocationDrop(e){if(placeMode==='normal')e.preventDefault()}
+function dropLocation(e,targetId){if(placeMode!=='normal')return;e.preventDefault();const sourceId=dragLocationId||e.dataTransfer.getData('text/plain');dragLocationId=null;if(!sourceId||sourceId===targetId)return;const source=loc(sourceId),target=loc(targetId);if(!source||!target||source.parent!==target.parent)return;const siblings=children(source.parent).filter(x=>x.id!==sourceId);const targetIndex=siblings.findIndex(x=>x.id===targetId);siblings.splice(targetIndex,0,source);siblings.forEach((x,i)=>x.order=i);save();renderPlaces()}
+function endLocationDrag(e){e.currentTarget.classList.remove('dragging');dragLocationId=null}
+function openPlace(id){placeMode='normal';currentPlace=id;renderPlaces()}
+function goBackPlace(){placeMode='normal';const p=loc(currentPlace);currentPlace=p&&p.parent?p.parent:null;renderPlaces()}
+
+function renderPlaces(){
+ const el=document.getElementById('placeContent');
+ if(!currentPlace){
+  el.innerHTML=`<div class="inline"><div class="section-title" style="margin-right:auto">部屋</div><div class="manage-actions">
+   <button class="btn secondary" onclick="togglePlaceMode('edit')">編集</button>
+   <button class="btn" onclick="openAddLocation(null)">＋ 部屋を追加</button>
+ </div></div>
+ <div class="location-manage-list">${children(null).map((x,i)=>modeLocationRow(x,i,true)).join('')}</div>
+ ${placeMode==='edit'?`<div class="manage-actions location-bulk-actions"><button class="btn secondary" onclick="deleteCheckedLocations()">チェックした項目を削除</button><button class="btn secondary" onclick="togglePlaceMode('normal')">キャンセル</button></div>`:''}`;
+  return;
+ }
+ const p=loc(currentPlace);if(!p){currentPlace=null;return renderPlaces()}
+ const ch=children(p.id),its=itemsAt(p.id),photo=photoSrc(p.photo)?`<img class="location-photo" src="${photoSrc(p.photo)}">`:'';
+ el.innerHTML=`<button class="back" onclick="goBackPlace()">← 戻る</button>
+ <div class="section-title">${icon(p.type)} ${esc(p.name)}</div>${photo}
+ <div class="manage-actions">
+   <button class="btn secondary" onclick="editCurrentPlace()">場所を編集</button>
+   <button class="btn secondary" onclick="deleteCurrentPlace()">場所を削除</button>
+ </div>
+ <div class="inline"><div class="section-title" style="margin-right:auto">下の階層</div><div class="manage-actions">
+   <button class="btn secondary" onclick="togglePlaceMode('edit')">編集</button>
+   <button class="btn" onclick="openAddLocation('${p.id}')">＋ 追加</button>
+ </div></div>
+ ${ch.length?`<div class="location-manage-list">${ch.map((x,i)=>modeLocationRow(x,i,false)).join('')}</div>
+ ${placeMode==='edit'?`<div class="manage-actions location-bulk-actions"><button class="btn secondary" onclick="deleteCheckedLocations()">チェックした項目を削除</button><button class="btn secondary" onclick="togglePlaceMode('normal')">キャンセル</button></div>`:''}`:`<div class="empty-state">まだ下の階層がありません</div>`}
+ <div class="section-title">この場所にある物</div>
+ ${its.length?its.map(itemCard).join(''):`<div class="empty-state">この場所には登録された物がありません</div>`}`;
+}
+let placeMode='normal';
+function togglePlaceMode(mode){placeMode=(mode==='edit'?'edit':'normal');renderPlaces()}
+function modeLocationRow(x,i,isRoom){
+ if(placeMode==='edit') return `<div class="location-manage-row edit-mode-row">
+   <label class="location-check"><input type="checkbox" class="location-delete-check" value="${escAttr(x.id)}"><span></span></label>
+   <button type="button" class="location-edit-target" onclick="openLocationEditor('${x.id}')">
+     <span>${icon(x.type)} ${esc(x.name)}${x.photo?' 📷':''}</span><span>編集 ›</span>
+   </button>
+ </div>`;
+ return `<div class="location-manage-row" draggable="true" ondragstart="startLocationDrag(event,'${x.id}')" ondragover="allowLocationDrop(event)" ondrop="dropLocation(event,'${x.id}')" ondragend="endLocationDrag(event)">
+   <button type="button" class="location-open-target" onclick="openPlace('${x.id}')">
+     <span class="location-row-main"><span class="drag-handle" aria-label="並び替え">⠿</span><span>${icon(x.type)} ${esc(x.name)}${x.photo?' 📷':''}</span></span><span>›</span>
+   </button>
+ </div>`;
+}
+function deleteCheckedLocations(){
+ const ids=[...document.querySelectorAll('.location-delete-check:checked')].map(x=>x.value);
+ if(!ids.length){alert('削除する項目にチェックを入れてください。');return}
+ deleteLocations(ids);
+}
+function openAddLocation(parentId){
+ const parent=parentId?loc(parentId):null;
+ const name=prompt(`${parent?path(parent.id):'自宅'} の下に追加する場所の名前を入力してください`);
+ if(!name||!name.trim())return;
+ const type=parent?(parent.type==='room'?'storage':'shelf'):'room';
+ data.locations.push({id:crypto.randomUUID(),name:name.trim(),parent:parentId||null,type,photo:'',order:children(parentId||null).length});
+ save();currentPlace=parentId||null;renderPlaces();
+}
+function editCurrentPlace(){
+ const p=loc(currentPlace);if(!p)return;
+ openLocationEditor(p.id);
+}
+function openLocationEditor(id){
+ const p=loc(id);if(!p)return;
+ const name=prompt('場所の名称',p.name);
+ if(name===null)return;
+ if(!name.trim()){alert('名称は空欄にできません。');return}
+ p.name=name.trim();
+ chooseLocationPhoto(p,()=>{save();renderPlaces();showToast('変更しました。')});
+}
+function chooseLocationPhoto(p,done){
+ if(!confirm('写真を追加・変更しますか？')){done();return}
+ const input=document.createElement('input');input.type='file';input.accept='image/*';input.capture='environment';
+ input.onchange=e=>{const f=e.target.files[0];if(!f){done();return}const r=new FileReader();
+  r.onload=async()=>{try{p.photo=await putPhoto(r.result);done()}catch(err){console.error(err);alert('写真の保存に失敗しました。');done()}};
+  r.readAsDataURL(f);
+ };
+ input.click();
+}
+function deleteCurrentPlace(){
+ const p=loc(currentPlace);if(!p)return;
+ deleteLocations([p.id]);
+}
+function deleteLocations(ids){
+ const all=new Set(ids);
+ let changed=true;
+ while(changed){changed=false;data.locations.forEach(x=>{if(x.parent&&all.has(x.parent)&&!all.has(x.id)){all.add(x.id);changed=true}})}
+ const itemCount=data.items.filter(i=>all.has(i.location)).length;
+ if(!confirm(`選択した${ids.length}件を削除しますか？\n下位階層${all.size-ids.length}件、登録物${itemCount}件も削除対象になります。`))return;
+ const parent=loc(ids[0])?.parent||null;
+ data.locations=data.locations.filter(x=>!all.has(x.id));
+ data.items=data.items.filter(i=>!all.has(i.location));
+ save();currentPlace=parent;renderPlaces();
+}
+function deleteSubLocations(){
+ const ch=children(currentPlace);
+ if(!ch.length){alert('削除できる下位階層がありません。');return}
+ const choices=ch.map((x,i)=>`${i+1}. ${x.name}`).join('\n');
+ const raw=prompt(`削除する項目の番号をカンマ区切りで入力してください。\n\n${choices}\n\n例：1,3`);
+ if(raw===null)return;
+ const nums=[...new Set(raw.split(',').map(x=>parseInt(x.trim(),10)).filter(n=>n>=1&&n<=ch.length))];
+ if(!nums.length){alert('有効な項目が選択されていません。');return}
+ deleteLocations(nums.map(n=>ch[n-1].id));
+}
+function editSubLocation(){
+ const ch=children(currentPlace);
+ if(!ch.length){alert('編集できる下位階層がありません。');return}
+ const choices=ch.map((x,i)=>`${i+1}. ${x.name}`).join('\n');
+ const raw=prompt(`編集する項目の番号を入力してください。\n\n${choices}`);
+ if(raw===null)return;
+ const n=parseInt(raw.trim(),10);
+ if(!Number.isInteger(n)||n<1||n>ch.length){alert('有効な番号を入力してください。');return}
+ openLocationEditor(ch[n-1].id);
+}
+
+function renderAddForm(preserve=true){
+ const form=document.getElementById('itemForm');
+ if(!preserve){
+  // Keep current unsaved form state. On first load only initialize selectors.
+  if(!form.dataset.initialized) form.dataset.initialized='1';
+ }
+ renderLocationLevels();
+ renderAddTags();
+}
+function getAddName(){return document.getElementById('itemName').value}
+function setAddPathFromSelected(){
+ addPath=[...document.querySelectorAll('#itemForm .dynamic-location-select')].map(s=>s.value).filter(Boolean);
+}
+function renderLocationLevels(){
+ const form=document.getElementById('itemForm'),anchor=document.getElementById('itemTags');
+ const old=Array.from(form.querySelectorAll('.dynamic-location-select,.location-choice-note'));
+ old.forEach(x=>x.remove());
+ // Preserve path values, but never allow skipping a parent.
+ let parent=null,level=0;
+ while(true){
+  const candidates=children(parent); // Use the same saved order as the Places screen.
+  if(!candidates.length)break;
+  const sel=document.createElement('select');
+  sel.className='location-select dynamic-location-select';
+  sel.innerHTML=`<option value="">${level===0?'部屋を選択':'下の階層を選択（任意）'}</option>`+
+   candidates.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
+  const value=addPath[level]&&candidates.some(x=>x.id===addPath[level])?addPath[level]:'';
+  sel.value=value;
+  sel.onchange=()=>{
+   addPath=addPath.slice(0,level);
+   if(sel.value)addPath.push(sel.value);
+   renderLocationLevels();
+  };
+  form.insertBefore(sel,anchor);
+  if(!value)break;
+  parent=value;level++;
+  if(level>50)break;
+ }
+ const note=document.createElement('div');note.className='subtle location-choice-note';
+ note.textContent=addPath.length?'登録先：'+addPath.map(id=>loc(id)?.name).filter(Boolean).join(' → '):'配置を選択してください。下位階層がない場合は、選択した場所そのものに登録できます。';
+ form.insertBefore(note,anchor);
+}
+function chosenLocation(){return addPath.at(-1)||''}
+
+function selectedAddTags(){return (document.getElementById('itemTags').value||'').split('|').filter(Boolean)}
+function renderAddTags(){
+ const el=document.getElementById('addTagChips');if(!el)return;
+ const selected=selectedAddTags();
+ el.innerHTML=data.tags.map((t,i)=>`<button type="button" class="chip ${selected.includes(t)?'active':''}" data-i="${i}">${esc(t)}</button>`).join('')+
+ `<button type="button" class="chip" id="newTagButton">＋ タグを追加</button>`;
+ el.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>toggleAddTag(data.tags[+b.dataset.i]));
+ document.getElementById('newTagButton').onclick=addTag;
+}
+function toggleAddTag(t){
+ let a=selectedAddTags();a=a.includes(t)?a.filter(x=>x!==t):[...a,t];
+ document.getElementById('itemTags').value=a.join('|');renderAddTags();
+}
+function addTag(){
+ const n=prompt('追加するタグ名を入力してください');if(!n||!n.trim())return;
+ const t=n.trim();if(!data.tags.includes(t))data.tags.push(t);
+ let a=selectedAddTags();if(!a.includes(t))a.push(t);
+ document.getElementById('itemTags').value=a.join('|');save();renderAddTags();
+}
+
+document.getElementById('itemPhoto').addEventListener('change',async e=>{
+ const f=e.target.files[0];if(!f)return;
+ try{
+  const r=new FileReader();
+  r.onload=async()=>{try{
+   const ref=await putPhoto(r.result);
+   const p=document.getElementById('photoPreview');
+   p.src=r.result;p.classList.remove('hidden');p.dataset.value=ref;
+  }catch(err){console.error(err);alert('写真の保存に失敗しました。もう一度お試しください。')}};
+  r.readAsDataURL(f);
+ }catch(err){console.error(err);alert('写真の読み込みに失敗しました。')}
+});
+document.getElementById('itemForm').addEventListener('submit',e=>{
+ e.preventDefault();setAddPathFromSelected();
+ const name=document.getElementById('itemName').value.trim(),location=chosenLocation();
+ if(!name){alert('品名を入力してください。');return}
+ if(!location){alert('部屋または配置を選択してください。');return}
+ const p=document.getElementById('photoPreview');
+ data.items.push({id:crypto.randomUUID(),name,location,tags:selectedAddTags(),memo:document.getElementById('itemMemo').value.trim(),photo:p.dataset.value||''});
+ save();resetItemForm();showScreen('searchScreen');showToast('登録しました。');
+});
+function resetItemForm(){
+ document.getElementById('itemForm').reset();document.getElementById('itemTags').value='';
+ const p=document.getElementById('photoPreview');p.classList.add('hidden');p.removeAttribute('src');delete p.dataset.value;
+ addPath=[];renderAddForm(false);
+}
+
+function showDetail(id){
+ const i=data.items.find(x=>x.id===id);if(!i)return;
+ document.getElementById('detailScreen').innerHTML=`<button class="back" onclick="showScreen('searchScreen')">← 検索に戻る</button>${photoSrc(i.photo)?`<img class="detail-photo" src="${photoSrc(i.photo)}">`:''}<div class="detail-title">${esc(i.name)}</div><div class="location">📍 ${esc(path(i.location))}</div><div class="tags">${(i.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>${i.memo?`<div class="card">${esc(i.memo)}</div>`:''}<div class="actions"><button class="btn" onclick="editItem('${i.id}')">編集</button><button class="btn secondary" onclick="deleteItem('${i.id}')">削除</button></div>`;
+ showScreen('detailScreen');
+}
+function editItem(id){
+ const i=data.items.find(x=>x.id===id);if(!i)return;
+ document.getElementById('detailScreen').innerHTML=`<button class="back" onclick="showDetail('${i.id}')">← 詳細に戻る</button><div class="section-title">物を編集</div><div class="editor form"><label>品名 *</label><input id="editName" value="${escAttr(i.name)}"><label>配置</label><div id="editLocationArea"></div><label>タグ</label><div id="editTagChips" class="chips"></div><input id="editTags" type="hidden" value="${escAttr((i.tags||[]).join('|'))}"><label>メモ</label><textarea id="editMemo">${esc(i.memo||'')}</textarea><label>写真</label><input id="editPhoto" type="file" accept="image/*" capture="environment"><img id="editPhotoPreview" class="photo-preview ${photoSrc(i.photo)?'':'hidden'}" ${photoSrc(i.photo)?`src="${photoSrc(i.photo)}"`:''} data-ref="${escAttr(i.photo||'')}"><div class="actions"><button class="btn" onclick="saveItemEdit('${i.id}')">保存</button><button class="btn secondary" onclick="showDetail('${i.id}')">キャンセル</button></div></div>`;
+ renderEditLocation(i.location);renderEditTags();
+ document.getElementById('editPhoto').onchange=async e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+ r.onload=async()=>{try{
+  const ref=await putPhoto(r.result);
+  const p=document.getElementById('editPhotoPreview');p.src=r.result;p.classList.remove('hidden');p.dataset.value=ref;p.dataset.ref=ref;
+ }catch(err){console.error(err);alert('写真の保存に失敗しました。もう一度お試しください。')}};
+ r.readAsDataURL(f);
+};
+ showScreen('detailScreen');
+}
+function renderEditLocation(location){
+ let chain=[],x=loc(location);while(x){chain.unshift(x.id);x=loc(x.parent)}editPath=chain;
+ const area=document.getElementById('editLocationArea');area.innerHTML='';let parent=null;
+ editPath.forEach((id,level)=>{
+  const sel=document.createElement('select');sel.className='location-select';sel.innerHTML=data.locations.filter(x=>x.parent===parent).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');sel.value=id;
+  sel.onchange=()=>{editPath=editPath.slice(0,level);if(sel.value)editPath.push(sel.value);renderEditLocation(editPath.at(-1))};
+  area.appendChild(sel);parent=id;
+ });
+ const next=children(editPath.at(-1)||'');
+ if(next.length){const sel=document.createElement('select');sel.className='location-select';sel.innerHTML='<option value="">さらに下の階層（任意）</option>'+next.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');sel.onchange=()=>{if(sel.value){editPath.push(sel.value);renderEditLocation(sel.value)}};area.appendChild(sel)}
+}
+function renderEditTags(){
+ const el=document.getElementById('editTagChips'),selected=(document.getElementById('editTags').value||'').split('|').filter(Boolean);
+ el.innerHTML=data.tags.map((t,i)=>`<button type="button" class="chip ${selected.includes(t)?'active':''}" data-i="${i}">${esc(t)}</button>`).join('')+`<button type="button" class="chip" id="editNewTag">＋ タグを追加</button>`;
+ el.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>toggleEditTag(data.tags[+b.dataset.i]));
+ document.getElementById('editNewTag').onclick=()=>{const n=prompt('追加するタグ名を入力してください');if(!n||!n.trim())return;const t=n.trim();if(!data.tags.includes(t))data.tags.push(t);toggleEditTag(t);save();renderEditTags()};
+}
+function toggleEditTag(t){let a=(document.getElementById('editTags').value||'').split('|').filter(Boolean);a=a.includes(t)?a.filter(x=>x!==t):[...a,t];document.getElementById('editTags').value=a.join('|');renderEditTags()}
+function saveItemEdit(id){
+ const i=data.items.find(x=>x.id===id),name=document.getElementById('editName').value.trim(),location=editPath.at(-1);
+ if(!name||!location){alert('品名と配置を確認してください。');return}
+ i.name=name;i.location=location;i.tags=document.getElementById('editTags').value.split('|').filter(Boolean);i.memo=document.getElementById('editMemo').value.trim();
+ const preview=document.getElementById('editPhotoPreview');
+ if(preview.dataset.value)i.photo=preview.dataset.value;
+ else if(preview.dataset.ref)i.photo=preview.dataset.ref;
+ save();showDetail(id);showToast('変更しました。');
+}
+function deleteItem(id){if(confirm('この物を削除しますか？')){data.items=data.items.filter(x=>x.id!==id);save();showScreen('searchScreen')}}
+
+document.querySelectorAll('.nav').forEach(n=>n.addEventListener('click',()=>{
+ // Do not reset add form; values are stored in DOM.
+}));
+(async()=>{
+ await loadAllPhotos();
+ renderSearch();
+ renderAddForm(false);
+ renderPlaces();
+})();
+</script>
+</body>
+</html>
