@@ -543,11 +543,66 @@ function toggleAddTag(t){
  let a=selectedAddTags();a=a.includes(t)?a.filter(x=>x!==t):[...a,t];
  document.getElementById('itemTags').value=a.join('|');renderAddTags();
 }
+function openAddTagModal(onComplete){
+ const content=document.getElementById('modalContent');
+ const overlay=document.getElementById('modalOverlay');
+ if(!content||!overlay)return;
+
+ content.innerHTML=
+  '<h3>タグを追加</h3>'+
+  '<div class="subtle">新しいタグの名前を入力してください。</div>'+
+  '<div class="form">'+
+   '<label for="newTagName">タグ名</label>'+
+   '<input id="newTagName" type="text" placeholder="例：家電、重要、予備" autocomplete="off">'+
+  '</div>'+
+  '<div class="modal-actions">'+
+   '<button id="cancelTagButton" class="btn secondary" type="button">キャンセル</button>'+
+   '<button id="submitTagButton" class="btn" type="button">追加する</button>'+
+  '</div>';
+
+ document.getElementById('cancelTagButton').onclick=closeModal;
+ document.getElementById('submitTagButton').onclick=()=>{
+  const input=document.getElementById('newTagName');
+  const n=input?input.value.trim():'';
+  if(!n){
+   if(input)input.focus({preventScroll:true});
+   return;
+  }
+  closeModal();
+  onComplete(n);
+ };
+
+ lockPageForModal();
+ overlay.classList.add('show');
+ syncModalViewport();
+
+ const input=document.getElementById('newTagName');
+ if(input){
+  requestAnimationFrame(()=>{
+   try{input.focus({preventScroll:true})}catch(e){input.focus()}
+   syncModalViewport();
+  });
+  input.onkeydown=e=>{
+   if(e.key==='Enter'){
+    e.preventDefault();
+    document.getElementById('submitTagButton').click();
+   }else if(e.key==='Escape'){
+    e.preventDefault();
+    closeModal();
+   }
+  };
+ }
+}
+
 function addTag(){
- const n=prompt('追加するタグ名を入力してください');if(!n||!n.trim())return;
- const t=n.trim();if(!data.tags.includes(t))data.tags.push(t);
- let a=selectedAddTags();if(!a.includes(t))a.push(t);
- document.getElementById('itemTags').value=a.join('|');save();renderAddTags();
+ openAddTagModal(n=>{
+  const t=n;
+  if(!data.tags.includes(t))data.tags.push(t);
+  let a=selectedAddTags();if(!a.includes(t))a.push(t);
+  document.getElementById('itemTags').value=a.join('|');
+  save();
+  renderAddTags();
+ });
 }
 
 document.getElementById('itemPhoto').addEventListener('change',async e=>{
@@ -610,7 +665,13 @@ function renderEditTags(){
  const el=document.getElementById('editTagChips'),selected=(document.getElementById('editTags').value||'').split('|').filter(Boolean);
  el.innerHTML=data.tags.map((t,i)=>`<button type="button" class="chip ${selected.includes(t)?'active':''}" data-i="${i}">${esc(t)}</button>`).join('')+`<button type="button" class="chip" id="editNewTag">＋ タグを追加</button>`;
  el.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>toggleEditTag(data.tags[+b.dataset.i]));
- document.getElementById('editNewTag').onclick=()=>{const n=prompt('追加するタグ名を入力してください');if(!n||!n.trim())return;const t=n.trim();if(!data.tags.includes(t))data.tags.push(t);toggleEditTag(t);save();renderEditTags()};
+ document.getElementById('editNewTag').onclick=()=>openAddTagModal(n=>{
+  const t=n;
+  if(!data.tags.includes(t))data.tags.push(t);
+  toggleEditTag(t);
+  save();
+  renderEditTags();
+ });
 }
 function toggleEditTag(t){let a=(document.getElementById('editTags').value||'').split('|').filter(Boolean);a=a.includes(t)?a.filter(x=>x!==t):[...a,t];document.getElementById('editTags').value=a.join('|');renderEditTags()}
 function saveItemEdit(id){
