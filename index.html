@@ -318,7 +318,7 @@ function modeLocationRow(x,i,isRoom){
 }
 function deleteCheckedLocations(){
  const ids=[...document.querySelectorAll('.location-delete-check:checked')].map(x=>x.value);
- if(!ids.length){alert('削除する項目にチェックを入れてください。');return}
+ if(!ids.length){openAppMessage('項目を選択してください','削除する項目にチェックを入れてください。');return}
  deleteLocations(ids);
 }
 let modalScrollY=0;
@@ -360,6 +360,23 @@ function closeModal(){
  const content=document.getElementById('modalContent');
  if(content)content.innerHTML='';
  unlockPageForModal();
+}
+function openAppMessage(title,message){
+ const content=document.getElementById('modalContent'),overlay=document.getElementById('modalOverlay');
+ if(!content||!overlay)return;
+ content.innerHTML='<h3>'+esc(title)+'</h3><div class="subtle" style="white-space:pre-line">'+esc(message)+'</div><div class="modal-actions"><button id="appMessageClose" class="btn" type="button">閉じる</button></div>';
+ document.getElementById('appMessageClose').onclick=closeModal;
+ lockPageForModal();overlay.classList.add('show');syncModalViewport();
+ requestAnimationFrame(()=>{document.getElementById('appMessageClose')?.focus({preventScroll:true});syncModalViewport()});
+}
+function openAppConfirm(title,message,onConfirm,confirmLabel='実行する'){
+ const content=document.getElementById('modalContent'),overlay=document.getElementById('modalOverlay');
+ if(!content||!overlay)return;
+ content.innerHTML='<h3>'+esc(title)+'</h3><div class="subtle" style="white-space:pre-line">'+esc(message)+'</div><div class="modal-actions"><button id="appConfirmCancel" class="btn secondary" type="button">キャンセル</button><button id="appConfirmOk" class="btn" type="button">'+esc(confirmLabel)+'</button></div>';
+ document.getElementById('appConfirmCancel').onclick=closeModal;
+ document.getElementById('appConfirmOk').onclick=()=>{closeModal();onConfirm()};
+ lockPageForModal();overlay.classList.add('show');syncModalViewport();
+ requestAnimationFrame(()=>{document.getElementById('appConfirmOk')?.focus({preventScroll:true});syncModalViewport()});
 }
 
 function submitLocationName(parentId){
@@ -439,57 +456,134 @@ function editCurrentPlace(){
 }
 function openLocationEditor(id){
  const p=loc(id);if(!p)return;
- const name=prompt('場所の名称',p.name);
- if(name===null)return;
- if(!name.trim()){alert('名称は空欄にできません。');return}
- p.name=name.trim();
- chooseLocationPhoto(p,()=>{save();renderPlaces();showToast('変更しました。')});
-}
-function chooseLocationPhoto(p,done){
- if(!confirm('写真を追加・変更しますか？')){done();return}
- const input=document.createElement('input');input.type='file';input.accept='image/*';input.capture='environment';
- input.onchange=e=>{const f=e.target.files[0];if(!f){done();return}const r=new FileReader();
-  r.onload=async()=>{try{p.photo=await putPhoto(r.result);done()}catch(err){console.error(err);alert('写真の保存に失敗しました。');done()}};
-  r.readAsDataURL(f);
+ const content=document.getElementById('modalContent'),overlay=document.getElementById('modalOverlay');
+ if(!content||!overlay)return;
+ const currentPhoto=photoSrc(p.photo);
+ content.innerHTML=
+  '<h3>場所を編集</h3>'+
+  '<div class="subtle">この階層の名前と写真を変更できます。</div>'+
+  '<div class="form">'+
+   '<label for="locationEditName">場所の名称</label>'+
+   '<input id="locationEditName" type="text" value="'+escAttr(p.name)+'" autocomplete="off">'+
+   '<label for="locationEditPhoto">写真</label>'+
+   '<input id="locationEditPhoto" type="file" accept="image/*" capture="environment">'+
+   '<div class="small">写真を選ばなければ、現在の写真をそのまま使います。</div>'+
+   '<img id="locationEditPhotoPreview" class="photo-preview '+(currentPhoto?'':'hidden')+'" '+(currentPhoto?'src="'+currentPhoto+'"':'')+'>'+
+   '<div id="locationEditError" class="small"></div>'+
+  '</div>'+
+  '<div class="modal-actions">'+
+   '<button id="locationEditCancel" class="btn secondary" type="button">キャンセル</button>'+
+   '<button id="locationEditSave" class="btn" type="button">保存</button>'+
+  '</div>';
+ document.getElementById('locationEditCancel').onclick=closeModal;
+ document.getElementById('locationEditSave').onclick=()=>saveLocationEditor(id);
+ document.getElementById('locationEditPhoto').onchange=e=>{
+  const f=e.target.files[0],preview=document.getElementById('locationEditPhotoPreview');
+  if(!f||!preview)return;
+  const url=URL.createObjectURL(f);
+  preview.src=url;preview.classList.remove('hidden');
+  preview.onload=()=>URL.revokeObjectURL(url);
  };
- input.click();
+ lockPageForModal();overlay.classList.add('show');syncModalViewport();
+ const input=document.getElementById('locationEditName');
+ if(input){
+  requestAnimationFrame(()=>{
+   try{input.focus({preventScroll:true})}catch(e){input.focus()}
+   input.select();syncModalViewport();
+  });
+  input.onkeydown=e=>{
+   if(e.key==='Enter'){e.preventDefault();saveLocationEditor(id)}
+   else if(e.key==='Escape'){e.preventDefault();closeModal()}
+  };
+ }
+}
+async function saveLocationEditor(id){
+ const p=loc(id),input=document.getElementById('locationEditName');
+ const fileInput=document.getElementById('locationEditPhoto'),error=document.getElementById('locationEditError');
+ const saveButton=document.getElementById('locationEditSave');
+ if(!p||!input)return;
+ const name=input.value.trim();
+ if(!name){
+  if(error)error.textContent='名称は空欄にできません。';
+  input.focus({preventScroll:true});return;
+ }
+ if(saveButton){saveButton.disabled=true;saveButton.textContent='保存中…'}
+ try{
+  const file=fileInput?.files?.[0];
+  let photoRef=p.photo||'';
+  if(file){
+   const dataUrl=await new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result);
+    reader.onerror=()=>reject(reader.error||new Error('FileReader failed'));
+    reader.readAsDataURL(file);
+   });
+   photoRef=await putPhoto(dataUrl);
+  }
+  p.name=name;p.photo=photoRef;
+  save();closeModal();renderPlaces();showToast('場所を変更しました。');
+ }catch(err){
+  console.error(err);
+  if(error)error.textContent='写真の保存に失敗しました。もう一度お試しください。';
+  if(saveButton){saveButton.disabled=false;saveButton.textContent='保存'}
+ }
 }
 function deleteCurrentPlace(){
  const p=loc(currentPlace);if(!p)return;
  deleteLocations([p.id]);
 }
 function deleteLocations(ids){
- const all=new Set(ids);
- let changed=true;
- while(changed){changed=false;data.locations.forEach(x=>{if(x.parent&&all.has(x.parent)&&!all.has(x.id)){all.add(x.id);changed=true}})}
+ const all=new Set(ids);let changed=true;
+ while(changed){
+  changed=false;
+  data.locations.forEach(x=>{
+   if(x.parent&&all.has(x.parent)&&!all.has(x.id)){all.add(x.id);changed=true}
+  });
+ }
  const itemCount=data.items.filter(i=>all.has(i.location)).length;
- if(!confirm(`選択した${ids.length}件を削除しますか？\n下位階層${all.size-ids.length}件、登録物${itemCount}件も削除対象になります。`))return;
  const parent=loc(ids[0])?.parent||null;
+ openAppConfirm('場所を削除','選択した'+ids.length+'件を削除しますか？\\n下位階層'+(all.size-ids.length)+'件、登録物'+itemCount+'件も削除対象になります。',()=>performDeleteLocations(ids,parent),'削除する');
+}
+function performDeleteLocations(ids,parent){
+ const all=new Set(ids);let changed=true;
+ while(changed){
+  changed=false;
+  data.locations.forEach(x=>{
+   if(x.parent&&all.has(x.parent)&&!all.has(x.id)){all.add(x.id);changed=true}
+  });
+ }
  data.locations=data.locations.filter(x=>!all.has(x.id));
  data.items=data.items.filter(i=>!all.has(i.location));
- save();currentPlace=parent;renderPlaces();
+ save();currentPlace=parent||null;renderPlaces();showToast('場所を削除しました。');
 }
 function deleteSubLocations(){
  const ch=children(currentPlace);
- if(!ch.length){alert('削除できる下位階層がありません。');return}
- const choices=ch.map((x,i)=>`${i+1}. ${x.name}`).join('\n');
- const raw=prompt(`削除する項目の番号をカンマ区切りで入力してください。\n\n${choices}\n\n例：1,3`);
- if(raw===null)return;
- const nums=[...new Set(raw.split(',').map(x=>parseInt(x.trim(),10)).filter(n=>n>=1&&n<=ch.length))];
- if(!nums.length){alert('有効な項目が選択されていません。');return}
- deleteLocations(nums.map(n=>ch[n-1].id));
+ if(!ch.length){openAppMessage('下の階層がありません','削除できる下位階層がありません。');return}
+ const content=document.getElementById('modalContent'),overlay=document.getElementById('modalOverlay');
+ if(!content||!overlay)return;
+ content.innerHTML='<h3>下の階層を削除</h3><div class="subtle">削除する場所を選択してください。</div><div class="check-list">'+
+  ch.map((x,i)=>'<label class="check-row"><input type="checkbox" class="sub-location-delete-check" value="'+escAttr(x.id)+'"><span>'+(i+1)+'. '+esc(x.name)+'</span></label>').join('')+
+  '</div><div class="modal-actions"><button id="subDeleteCancel" class="btn secondary" type="button">キャンセル</button><button id="subDeleteNext" class="btn" type="button">次へ</button></div>';
+ document.getElementById('subDeleteCancel').onclick=closeModal;
+ document.getElementById('subDeleteNext').onclick=()=>{
+  const ids=[...document.querySelectorAll('.sub-location-delete-check:checked')].map(x=>x.value);
+  if(!ids.length){openAppMessage('項目を選択してください','削除する場所を1つ以上選択してください。');return}
+  closeModal();deleteLocations(ids);
+ };
+ lockPageForModal();overlay.classList.add('show');syncModalViewport();
 }
 function editSubLocation(){
  const ch=children(currentPlace);
- if(!ch.length){alert('編集できる下位階層がありません。');return}
- const choices=ch.map((x,i)=>`${i+1}. ${x.name}`).join('\n');
- const raw=prompt(`編集する項目の番号を入力してください。\n\n${choices}`);
- if(raw===null)return;
- const n=parseInt(raw.trim(),10);
- if(!Number.isInteger(n)||n<1||n>ch.length){alert('有効な番号を入力してください。');return}
- openLocationEditor(ch[n-1].id);
+ if(!ch.length){openAppMessage('下の階層がありません','編集できる下位階層がありません。');return}
+ const content=document.getElementById('modalContent'),overlay=document.getElementById('modalOverlay');
+ if(!content||!overlay)return;
+ content.innerHTML='<h3>下の階層を編集</h3><div class="subtle">編集する場所を選択してください。</div><div class="check-list">'+
+  ch.map((x,i)=>'<button type="button" class="location-open-target" data-location-id="'+escAttr(x.id)+'">'+(i+1)+'. '+icon(x.type)+' '+esc(x.name)+'</button>').join('')+
+  '</div><div class="modal-actions"><button id="subEditCancel" class="btn secondary" type="button">キャンセル</button></div>';
+ document.getElementById('subEditCancel').onclick=closeModal;
+ content.querySelectorAll('[data-location-id]').forEach(btn=>btn.onclick=()=>{const id=btn.dataset.locationId;closeModal();openLocationEditor(id)});
+ lockPageForModal();overlay.classList.add('show');syncModalViewport();
 }
-
 function renderAddForm(preserve=true){
  const form=document.getElementById('itemForm');
  if(!preserve){
@@ -617,15 +711,15 @@ document.getElementById('itemPhoto').addEventListener('change',async e=>{
    const ref=await putPhoto(r.result);
    const p=document.getElementById('photoPreview');
    p.src=r.result;p.classList.remove('hidden');p.dataset.value=ref;
-  }catch(err){console.error(err);alert('写真の保存に失敗しました。もう一度お試しください。')}};
+  }catch(err){console.error(err);openAppMessage('写真の保存に失敗しました。','写真の保存に失敗しました。もう一度お試しください。')}};
   r.readAsDataURL(f);
- }catch(err){console.error(err);alert('写真の読み込みに失敗しました。')}
+ }catch(err){console.error(err);openAppMessage('写真の読み込みに失敗しました。','写真の読み込みに失敗しました。')}
 });
 document.getElementById('itemForm').addEventListener('submit',e=>{
  e.preventDefault();setAddPathFromSelected();
  const name=document.getElementById('itemName').value.trim(),location=chosenLocation();
- if(!name){alert('品名を入力してください。');return}
- if(!location){alert('部屋または配置を選択してください。');return}
+ if(!name){openAppMessage('品名を入力してください。','品名を入力してから登録してください。');return}
+ if(!location){openAppMessage('配置を選択してください。','部屋または配置を選択してから登録してください。');return}
  const p=document.getElementById('photoPreview');
  data.items.push({id:crypto.randomUUID(),name,location,tags:selectedAddTags(),memo:document.getElementById('itemMemo').value.trim(),photo:p.dataset.value||''});
  save();resetItemForm();showScreen('searchScreen');showToast('登録しました。');
@@ -639,8 +733,8 @@ function resetItemForm(){
 function registerAndContinueSameLocation(){
  setAddPathFromSelected();
  const name=document.getElementById('itemName').value.trim(),location=chosenLocation();
- if(!name){alert('品名を入力してください。');return}
- if(!location){alert('部屋または配置を選択してください。');return}
+ if(!name){openAppMessage('品名を入力してください。','品名を入力してから登録してください。');return}
+ if(!location){openAppMessage('配置を選択してください。','部屋または配置を選択してから登録してください。');return}
 
  // Keep only the selected location path; every other item field is reset.
  const keptLocationPath=[...addPath];
@@ -683,7 +777,7 @@ function editItem(id){
  r.onload=async()=>{try{
   const ref=await putPhoto(r.result);
   const p=document.getElementById('editPhotoPreview');p.src=r.result;p.classList.remove('hidden');p.dataset.value=ref;p.dataset.ref=ref;
- }catch(err){console.error(err);alert('写真の保存に失敗しました。もう一度お試しください。')}};
+ }catch(err){console.error(err);openAppMessage('写真の保存に失敗しました。','写真の保存に失敗しました。もう一度お試しください。')}};
  r.readAsDataURL(f);
 };
  showScreen('detailScreen');
@@ -714,14 +808,19 @@ function renderEditTags(){
 function toggleEditTag(t){let a=(document.getElementById('editTags').value||'').split('|').filter(Boolean);a=a.includes(t)?a.filter(x=>x!==t):[...a,t];document.getElementById('editTags').value=a.join('|');renderEditTags()}
 function saveItemEdit(id){
  const i=data.items.find(x=>x.id===id),name=document.getElementById('editName').value.trim(),location=editPath.at(-1);
- if(!name||!location){alert('品名と配置を確認してください。');return}
+ if(!name||!location){openAppMessage('入力を確認してください。','品名と配置を確認してください。');return}
  i.name=name;i.location=location;i.tags=document.getElementById('editTags').value.split('|').filter(Boolean);i.memo=document.getElementById('editMemo').value.trim();
  const preview=document.getElementById('editPhotoPreview');
  if(preview.dataset.value)i.photo=preview.dataset.value;
  else if(preview.dataset.ref)i.photo=preview.dataset.ref;
  save();showScreen('searchScreen');showToast('変更しました。');
 }
-function deleteItem(id){if(confirm('この物を削除しますか？')){data.items=data.items.filter(x=>x.id!==id);save();showScreen('searchScreen')}}
+function deleteItem(id){
+ const i=data.items.find(x=>x.id===id);if(!i)return;
+ openAppConfirm('物を削除','「'+i.name+'」を削除しますか？',()=>{
+  data.items=data.items.filter(x=>x.id!==id);save();showScreen('searchScreen');showToast('削除しました。');
+ },'削除する');
+}
 
 document.querySelectorAll('.nav').forEach(n=>n.addEventListener('click',()=>{
  // Do not reset add form; values are stored in DOM.
