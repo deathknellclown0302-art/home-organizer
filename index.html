@@ -80,7 +80,7 @@ main{padding:10px 18px 108px}
 .bottom{background:rgba(251,249,243,.94);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid rgba(220,214,201,.85);box-shadow:0 -6px 24px rgba(49,57,46,.05);padding:9px 10px calc(9px + env(safe-area-inset-bottom))}
 .nav{border-radius:15px;color:#92988e;padding:8px 4px;transition:background .2s,color .2s,transform .2s}.nav.active{background:#e5ebdf;color:var(--espresso);font-weight:700;transform:translateY(-2px)}.nav small{font-size:11px;letter-spacing:.04em}
 .chip{border:1px solid #e4dfd4;background:#fffdf8;color:#68766b;border-radius:999px;padding:9px 13px;transition:all .18s}.chip.active{background:var(--espresso);border-color:var(--espresso);color:#fff}
-#modalOverlay{background:rgba(35,45,37,.42);backdrop-filter:blur(4px)}.modal{background:var(--cream);border-radius:25px 25px 0 0;box-shadow:0 -12px 45px rgba(31,42,33,.15)}
+#modalOverlay{background:rgba(35,45,37,.42);backdrop-filter:blur(4px);inset:0;align-items:center;padding:16px;height:100dvh;overflow:hidden}.modal{background:var(--cream);border-radius:25px;box-shadow:0 12px 45px rgba(31,42,33,.15);width:min(100%,580px);max-height:calc(100dvh - 32px);margin:0;transform:translateY(-6vh);overflow:auto}html.modal-open,body.modal-open{overflow:hidden!important;overscroll-behavior:none}
 .empty-state{padding:42px 15px;color:#81887e}.back{color:#68766b;font-weight:600;padding:8px 0}
 #appToast{background:var(--espresso);box-shadow:0 7px 22px rgba(35,52,40,.2);letter-spacing:.04em}
 @media(min-width:600px){header{padding-top:34px}main{padding-left:26px;padding-right:26px}.card:hover{box-shadow:0 10px 28px rgba(57,65,49,.08)}}
@@ -317,11 +317,45 @@ function deleteCheckedLocations(){
  if(!ids.length){alert('削除する項目にチェックを入れてください。');return}
  deleteLocations(ids);
 }
+let modalScrollY=0;
+
+function syncModalViewport(){
+ const overlay=document.getElementById('modalOverlay');
+ if(!overlay)return;
+ const vv=window.visualViewport;
+ if(vv){
+  overlay.style.height=vv.height+'px';
+  overlay.style.top=vv.offsetTop+'px';
+  overlay.style.bottom='auto';
+ }
+}
+
+function lockPageForModal(){
+ modalScrollY=window.scrollY;
+ document.documentElement.classList.add('modal-open');
+ document.body.classList.add('modal-open');
+ syncModalViewport();
+}
+
+function unlockPageForModal(){
+ document.documentElement.classList.remove('modal-open');
+ document.body.classList.remove('modal-open');
+ const y=modalScrollY;
+ requestAnimationFrame(()=>window.scrollTo(0,y));
+ const overlay=document.getElementById('modalOverlay');
+ if(overlay){
+  overlay.style.height='';
+  overlay.style.top='';
+  overlay.style.bottom='';
+ }
+}
+
 function closeModal(){
  const overlay=document.getElementById('modalOverlay');
  if(overlay)overlay.classList.remove('show');
  const content=document.getElementById('modalContent');
  if(content)content.innerHTML='';
+ unlockPageForModal();
 }
 
 function submitLocationName(parentId){
@@ -369,10 +403,16 @@ function openAddLocation(parentId){
  document.getElementById('cancelLocationButton').onclick=closeModal;
  document.getElementById('submitLocationButton').onclick=()=>submitLocationName(parentId);
 
+ lockPageForModal();
  overlay.classList.add('show');
+ syncModalViewport();
+
  const input=document.getElementById('newLocationName');
  if(input){
-  input.focus();
+  requestAnimationFrame(()=>{
+   try{input.focus({preventScroll:true})}catch(e){input.focus()}
+   syncModalViewport();
+  });
   input.onkeydown=e=>{
    if(e.key==='Enter'){
     e.preventDefault();
@@ -384,6 +424,11 @@ function openAddLocation(parentId){
   };
  }
 }
+if(window.visualViewport){
+ window.visualViewport.addEventListener('resize',syncModalViewport);
+ window.visualViewport.addEventListener('scroll',syncModalViewport);
+}
+
 function editCurrentPlace(){
  const p=loc(currentPlace);if(!p)return;
  openLocationEditor(p.id);
