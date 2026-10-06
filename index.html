@@ -727,7 +727,7 @@ function openTagManager(){
    const count=data.items.filter(i=>(i.tags||[]).includes(tag)).length;
    openAppConfirm(
     'タグを削除',
-    '「'+tag+'」を削除しますか？'+(count?'\\nこのタグを使用している'+count+'件の物からも外れます。':''),
+    '「'+tag+'」を削除しますか？'+(count?' このタグを使用している'+count+'件の物からも外れます。':''),
     ()=>deleteTag(tag),
     '削除する'
    );
