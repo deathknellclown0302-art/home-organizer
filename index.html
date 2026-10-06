@@ -313,13 +313,46 @@ function deleteCheckedLocations(){
  if(!ids.length){alert('削除する項目にチェックを入れてください。');return}
  deleteLocations(ids);
 }
+function closeModal(){
+ const overlay=document.getElementById('modalOverlay');
+ if(overlay)overlay.classList.remove('show');
+ const content=document.getElementById('modalContent');
+ if(content)content.innerHTML='';
+}
+
+function submitLocationName(parentId){
+ const input=document.getElementById('newLocationName');
+ const name=input?input.value.trim():'';
+ if(!name){
+  if(input)input.focus();
+  return;
+ }
+ const parent=parentId?loc(parentId):null;
+ const type=parent?(parent.type==='room'?'storage':'shelf'):'room';
+ data.locations.push({id:crypto.randomUUID(),name,parent:parentId||null,type,photo:'',order:children(parentId||null).length});
+ save();
+ closeModal();
+ currentPlace=parentId||null;
+ renderPlaces();
+}
+
 function openAddLocation(parentId){
  const parent=parentId?loc(parentId):null;
- const name=prompt(`${parent?path(parent.id):'自宅'} の下に追加する場所の名前を入力してください`);
- if(!name||!name.trim())return;
- const type=parent?(parent.type==='room'?'storage':'shelf'):'room';
- data.locations.push({id:crypto.randomUUID(),name:name.trim(),parent:parentId||null,type,photo:'',order:children(parentId||null).length});
- save();currentPlace=parentId||null;renderPlaces();
+ const context=parent?path(parent.id):'自宅';
+ const content=document.getElementById('modalContent');
+ const overlay=document.getElementById('modalOverlay');
+ content.innerHTML=`<h3>新しい場所</h3>
+  <div class="subtle">${esc(context)} の下に追加します。</div>
+  <div class="form"><label for="newLocationName">場所の名前</label>
+  <input id="newLocationName" type="text" placeholder="例：リビング、テレビ台、引き出し" autocomplete="off"></div>
+  <div class="modal-actions">
+   <button class="btn secondary" type="button" onclick="closeModal()">キャンセル</button>
+   <button class="btn" type="button" onclick="submitLocationName('${parentId||''}')">追加する</button>
+  </div>`;
+ overlay.classList.add('show');
+ const input=document.getElementById('newLocationName');
+ input.focus();
+ input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();submitLocationName('${parentId||''}')}};
 }
 function editCurrentPlace(){
  const p=loc(currentPlace);if(!p)return;
