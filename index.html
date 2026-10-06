@@ -633,9 +633,11 @@ function renderAddTags(){
  const el=document.getElementById('addTagChips');if(!el)return;
  const selected=selectedAddTags();
  el.innerHTML=data.tags.map((t,i)=>`<button type="button" class="chip ${selected.includes(t)?'active':''}" data-i="${i}">${esc(t)}</button>`).join('')+
- `<button type="button" class="chip" id="newTagButton">＋ タグを追加</button>`;
+ `<button type="button" class="chip" id="newTagButton">＋ タグを追加</button>`+
+ `<button type="button" class="chip" id="manageTagButton">⚙ タグを管理</button>`;
  el.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>toggleAddTag(data.tags[+b.dataset.i]));
  document.getElementById('newTagButton').onclick=addTag;
+ document.getElementById('manageTagButton').onclick=openTagManager;
 }
 function toggleAddTag(t){
  let a=selectedAddTags();a=a.includes(t)?a.filter(x=>x!==t):[...a,t];
@@ -703,6 +705,50 @@ function addTag(){
  });
 }
 
+function openTagManager(){
+ const content=document.getElementById('modalContent'),overlay=document.getElementById('modalOverlay');
+ if(!content||!overlay)return;
+ const rows=data.tags.map(t=>{
+  const count=data.items.filter(i=>(i.tags||[]).includes(t)).length;
+  return '<div class="check-row" style="justify-content:space-between;gap:12px">'+
+   '<span>'+esc(t)+(count?' <span class="small">（'+count+'件で使用中）</span>':'')+'</span>'+
+   '<button type="button" class="btn secondary tag-delete-button" data-tag="'+escAttr(t)+'">削除</button>'+
+  '</div>';
+ }).join('');
+ content.innerHTML=
+  '<h3>タグを管理</h3>'+
+  '<div class="subtle">不要なタグを削除できます。使用中のタグを削除すると、そのタグは登録済みの物からも外れます。</div>'+
+  (rows||'<div class="subtle">登録されているタグはありません。</div>')+
+  '<div class="modal-actions"><button id="tagManagerClose" class="btn secondary" type="button">閉じる</button></div>';
+ document.getElementById('tagManagerClose').onclick=closeModal;
+ content.querySelectorAll('.tag-delete-button').forEach(btn=>{
+  btn.onclick=()=>{
+   const tag=btn.dataset.tag;
+   const count=data.items.filter(i=>(i.tags||[]).includes(tag)).length;
+   openAppConfirm(
+    'タグを削除',
+    '「'+tag+'」を削除しますか？'+(count?'\\nこのタグを使用している'+count+'件の物からも外れます。':''),
+    ()=>deleteTag(tag),
+    '削除する'
+   );
+  };
+ });
+ lockPageForModal();overlay.classList.add('show');syncModalViewport();
+}
+function deleteTag(tag){
+ if(!data.tags.includes(tag))return;
+ data.tags=data.tags.filter(t=>t!==tag);
+ data.items.forEach(i=>{i.tags=(i.tags||[]).filter(t=>t!==tag)});
+ const addTags=document.getElementById('itemTags');
+ if(addTags)addTags.value=selectedAddTags().filter(t=>t!==tag).join('|');
+ const editTags=document.getElementById('editTags');
+ if(editTags)editTags.value=(editTags.value||'').split('|').filter(Boolean).filter(t=>t!==tag).join('|');
+ save();
+ closeModal();
+ renderAddTags();
+ if(document.getElementById('editTagChips'))renderEditTags();
+ showToast('タグを削除しました。');
+}
 document.getElementById('itemPhoto').addEventListener('change',async e=>{
  const f=e.target.files[0];if(!f)return;
  try{
@@ -795,7 +841,9 @@ function renderEditLocation(location){
 }
 function renderEditTags(){
  const el=document.getElementById('editTagChips'),selected=(document.getElementById('editTags').value||'').split('|').filter(Boolean);
- el.innerHTML=data.tags.map((t,i)=>`<button type="button" class="chip ${selected.includes(t)?'active':''}" data-i="${i}">${esc(t)}</button>`).join('')+`<button type="button" class="chip" id="editNewTag">＋ タグを追加</button>`;
+ el.innerHTML=data.tags.map((t,i)=>`<button type="button" class="chip ${selected.includes(t)?'active':''}" data-i="${i}">${esc(t)}</button>`).join('')+
+  `<button type="button" class="chip" id="editNewTag">＋ タグを追加</button>`+
+  `<button type="button" class="chip" id="editManageTag">⚙ タグを管理</button>`;
  el.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>toggleEditTag(data.tags[+b.dataset.i]));
  document.getElementById('editNewTag').onclick=()=>openAddTagModal(n=>{
   const t=n;
@@ -804,6 +852,7 @@ function renderEditTags(){
   save();
   renderEditTags();
  });
+ document.getElementById('editManageTag').onclick=openTagManager;
 }
 function toggleEditTag(t){let a=(document.getElementById('editTags').value||'').split('|').filter(Boolean);a=a.includes(t)?a.filter(x=>x!==t):[...a,t];document.getElementById('editTags').value=a.join('|');renderEditTags()}
 function saveItemEdit(id){
