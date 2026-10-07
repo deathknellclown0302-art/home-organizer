@@ -1,9 +1,9 @@
 {
   "name": "自宅の整理整頓",
   "short_name": "自宅の整理整頓",
-  "id": "./",
-  "start_url": "./",
-  "scope": "./",
+  "id": "/home-organizer/",
+  "start_url": "/home-organizer/",
+  "scope": "/home-organizer/",
   "display": "standalone",
   "background_color": "#fbf8f1",
   "theme_color": "#f3efe7",
@@ -20,5 +20,10 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "display_override": [
+    "standalone"
+  ],
+  "prefer_related_applications": false,
+  "lang": "ja"
 }
