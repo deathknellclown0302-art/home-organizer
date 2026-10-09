@@ -42,6 +42,8 @@ main{padding:8px 16px 92px}.screen{display:none}.screen.active{display:block}
 .edit-mode-row .location-check{width:42px;min-width:42px;align-self:stretch}
 .edit-mode-row .location-edit-target{min-width:0}
 .location-admin-row{display:flex;align-items:center;gap:10px;padding:12px 4px;border-bottom:1px solid var(--line)}
+.location-admin-row{cursor:grab}.location-admin-row.dragging{opacity:.45}.location-admin-row .drag-handle{flex:none;cursor:grab;font-size:20px;color:var(--muted)}
+.tag-manage-row{cursor:grab}.tag-manage-row.dragging{opacity:.45}.tag-drag-handle{flex:none;cursor:grab;font-size:20px;color:var(--muted)}
 .location-admin-name{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:600}
 .location-admin-actions{display:flex;gap:6px;flex:none}
 .location-admin-actions .btn{padding:8px 11px;font-size:12px;white-space:nowrap;margin:0;box-shadow:none}
@@ -272,9 +274,9 @@ function renderSearch(){
 }
 function row(x){return `<div class="tree-row" onclick="openPlace('${x.id}')"><b>${icon(x.type)} ${esc(x.name)}${x.photo?' 📷':''}</b><span>›</span></div>`}
 let dragLocationId=null;
-function startLocationDrag(e,id){if(placeMode!=='normal')return;dragLocationId=id;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',id);e.currentTarget.classList.add('dragging')}
-function allowLocationDrop(e){if(placeMode==='normal')e.preventDefault()}
-function dropLocation(e,targetId){if(placeMode!=='normal')return;e.preventDefault();const sourceId=dragLocationId||e.dataTransfer.getData('text/plain');dragLocationId=null;if(!sourceId||sourceId===targetId)return;const source=loc(sourceId),target=loc(targetId);if(!source||!target||source.parent!==target.parent)return;const siblings=children(source.parent).filter(x=>x.id!==sourceId);const targetIndex=siblings.findIndex(x=>x.id===targetId);siblings.splice(targetIndex,0,source);siblings.forEach((x,i)=>x.order=i);save();renderPlaces()}
+function startLocationDrag(e,id){if(placeMode!=='edit')return;dragLocationId=id;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',id);e.currentTarget.classList.add('dragging')}
+function allowLocationDrop(e){if(placeMode==='edit')e.preventDefault()}
+function dropLocation(e,targetId){if(placeMode!=='edit')return;e.preventDefault();const sourceId=dragLocationId||e.dataTransfer.getData('text/plain');dragLocationId=null;if(!sourceId||sourceId===targetId)return;const source=loc(sourceId),target=loc(targetId);if(!source||!target||source.parent!==target.parent)return;const siblings=children(source.parent).filter(x=>x.id!==sourceId);const targetIndex=siblings.findIndex(x=>x.id===targetId);siblings.splice(targetIndex,0,source);siblings.forEach((x,i)=>x.order=i);save();renderPlaces()}
 function endLocationDrag(e){e.currentTarget.classList.remove('dragging');dragLocationId=null}
 function openPlace(id){placeMode='normal';currentPlace=id;renderPlaces()}
 function goBackPlace(){placeMode='normal';const p=loc(currentPlace);currentPlace=p&&p.parent?p.parent:null;renderPlaces()}
@@ -283,7 +285,7 @@ function renderPlaces(){
  const el=document.getElementById('placeContent');
  if(!currentPlace){
   el.innerHTML=`<div class="inline"><div class="section-title" style="margin-right:auto">部屋</div><div class="manage-actions">
-   <button class="btn secondary" onclick="togglePlaceMode(placeMode==='edit'?'normal':'edit')">${placeMode==='edit'?'キャンセル':'編集'}</button>
+   <button class="btn secondary" onclick="togglePlaceMode(placeMode==='edit'?'normal':'edit')">${placeMode==='edit'?'管理を終了':'部屋を管理'}</button>
    <button class="btn" onclick="openAddLocation(null)">＋ 部屋を追加</button>
  </div></div>
  <div class="location-manage-list">${children(null).map((x,i)=>modeLocationRow(x,i,true)).join('')}</div>
@@ -294,32 +296,29 @@ function renderPlaces(){
  const ch=children(p.id),its=itemsAt(p.id),photo=photoSrc(p.photo)?`<img class="location-photo" src="${photoSrc(p.photo)}">`:'';
  el.innerHTML=`<button class="back" onclick="goBackPlace()">← 戻る</button>
  <div class="section-title">${icon(p.type)} ${esc(p.name)}</div>${photo}
- <div class="manage-actions">
-   <button class="btn secondary" onclick="editCurrentPlace()">場所を編集</button>
-   <button class="btn secondary" onclick="deleteCurrentPlace()">場所を削除</button>
- </div>
  <div class="inline"><div class="section-title" style="margin-right:auto">下の階層</div><div class="manage-actions">
-   <button class="btn secondary" onclick="togglePlaceMode(placeMode==='edit'?'normal':'edit')">${placeMode==='edit'?'キャンセル':'編集'}</button>
+   <button class="btn secondary" onclick="togglePlaceMode(placeMode==='edit'?'normal':'edit')">${placeMode==='edit'?'管理を終了':'部屋を管理'}</button>
    <button class="btn" onclick="openAddLocation('${p.id}')">＋ 追加</button>
  </div></div>
- ${ch.length?`<div class="location-manage-list">${ch.map((x,i)=>modeLocationRow(x,i,false)).join('')}</div>
- `:`<div class="empty-state">まだ下の階層がありません</div>`}
+ ${placeMode==='edit'? `<div class="location-manage-list">${modeLocationRow(p,0,false)}${ch.map((x,i)=>modeLocationRow(x,i,false)).join('')}</div>`:
+ (ch.length?`<div class="location-manage-list">${ch.map((x,i)=>modeLocationRow(x,i,false)).join('')}</div>`:`<div class="empty-state">まだ下の階層がありません</div>`)}
  <div class="section-title">この場所にある物</div>
  ${its.length?its.map(itemCard).join(''):`<div class="empty-state">この場所には登録された物がありません</div>`}`;
 }
 let placeMode='normal';
 function togglePlaceMode(mode){placeMode=(mode==='edit'?'edit':'normal');renderPlaces()}
 function modeLocationRow(x,i,isRoom){
- if(placeMode==='edit') return `<div class="location-manage-row location-admin-row">
+ if(placeMode==='edit') return `<div class="location-manage-row location-admin-row" draggable="true" ondragstart="startLocationDrag(event,'${x.id}')" ondragover="allowLocationDrop(event)" ondrop="dropLocation(event,'${x.id}')" ondragend="endLocationDrag(event)">
+   <span class="drag-handle" aria-label="並び替え">⠿</span>
    <div class="location-admin-name">${icon(x.type)} ${esc(x.name)}${x.photo?' 📷':''}</div>
    <div class="location-admin-actions">
     <button type="button" class="btn secondary" onclick="openLocationEditor('${x.id}')">編集</button>
     <button type="button" class="btn secondary" onclick="deleteLocations(['${x.id}'])">削除</button>
    </div>
  </div>`;
- return `<div class="location-manage-row" draggable="true" ondragstart="startLocationDrag(event,'${x.id}')" ondragover="allowLocationDrop(event)" ondrop="dropLocation(event,'${x.id}')" ondragend="endLocationDrag(event)">
+ return `<div class="location-manage-row">
    <button type="button" class="location-open-target" onclick="openPlace('${x.id}')">
-     <span class="location-row-main"><span class="drag-handle" aria-label="並び替え">⠿</span><span>${icon(x.type)} ${esc(x.name)}${x.photo?' 📷':''}</span></span><span>›</span>
+     <span class="location-row-main"><span>${icon(x.type)} ${esc(x.name)}${x.photo?' 📷':''}</span></span><span>›</span>
    </button>
  </div>`;
 }
@@ -717,8 +716,9 @@ function openTagManager(){
  if(!content||!overlay)return;
  const rows=data.tags.map(t=>{
   const count=data.items.filter(i=>(i.tags||[]).includes(t)).length;
-  return '<div class="check-row" style="justify-content:space-between;gap:12px">'+
-   '<span style="min-width:0;overflow-wrap:anywhere">'+esc(t)+(count?' <span class="small">（'+count+'件で使用中）</span>':'')+'</span>'+
+  return '<div class="check-row tag-manage-row" draggable="true" data-tag="'+escAttr(t)+'" style="justify-content:space-between;gap:12px">'+
+   '<span class="tag-drag-handle" aria-label="並び替え">⠿</span>'+
+   '<span style="min-width:0;overflow-wrap:anywhere;flex:1">'+esc(t)+(count?' <span class="small">（'+count+'件で使用中）</span>':'')+'</span>'+
    '<div style="display:flex;gap:6px;flex:none">'+
     '<button type="button" class="btn secondary tag-edit-button" data-tag="'+escAttr(t)+'">編集</button>'+
     '<button type="button" class="btn secondary tag-delete-button" data-tag="'+escAttr(t)+'">削除</button>'+
@@ -731,6 +731,26 @@ function openTagManager(){
   (rows||'<div class="subtle">登録されているタグはありません。</div>')+
   '<div class="modal-actions"><button id="tagManagerClose" class="btn secondary" type="button">閉じる</button></div>';
  document.getElementById('tagManagerClose').onclick=closeModal;
+ let draggedTag=null;
+ content.querySelectorAll('.tag-manage-row').forEach(row=>{
+  row.addEventListener('dragstart',e=>{
+   draggedTag=row.dataset.tag;
+   e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',draggedTag);
+   row.classList.add('dragging');
+  });
+  row.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move'});
+  row.addEventListener('drop',e=>{
+   e.preventDefault();
+   const from=draggedTag||e.dataTransfer.getData('text/plain'),to=row.dataset.tag;
+   draggedTag=null;
+   if(!from||from===to)return;
+   const list=[...data.tags],sourceIndex=list.indexOf(from),targetIndex=list.indexOf(to);
+   if(sourceIndex<0||targetIndex<0)return;
+   list.splice(sourceIndex,1);list.splice(targetIndex,0,from);
+   data.tags=list;save();openTagManager();
+  });
+  row.addEventListener('dragend',()=>{draggedTag=null;row.classList.remove('dragging')});
+ });
  content.querySelectorAll('.tag-edit-button').forEach(btn=>{
   btn.onclick=()=>openTagEditor(btn.dataset.tag);
  });
