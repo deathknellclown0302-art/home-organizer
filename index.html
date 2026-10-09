@@ -41,6 +41,10 @@ main{padding:8px 16px 92px}.screen{display:none}.screen.active{display:block}
 .edit-mode-row{gap:8px}
 .edit-mode-row .location-check{width:42px;min-width:42px;align-self:stretch}
 .edit-mode-row .location-edit-target{min-width:0}
+.location-admin-row{display:flex;align-items:center;gap:10px;padding:12px 4px;border-bottom:1px solid var(--line)}
+.location-admin-name{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:600}
+.location-admin-actions{display:flex;gap:6px;flex:none}
+.location-admin-actions .btn{padding:8px 11px;font-size:12px;white-space:nowrap;margin:0;box-shadow:none}
 
 
 .location-row-main{display:flex;align-items:center;gap:9px;min-width:0}
@@ -279,11 +283,11 @@ function renderPlaces(){
  const el=document.getElementById('placeContent');
  if(!currentPlace){
   el.innerHTML=`<div class="inline"><div class="section-title" style="margin-right:auto">部屋</div><div class="manage-actions">
-   <button class="btn secondary" onclick="togglePlaceMode('edit')">編集</button>
+   <button class="btn secondary" onclick="togglePlaceMode(placeMode==='edit'?'normal':'edit')">${placeMode==='edit'?'キャンセル':'編集'}</button>
    <button class="btn" onclick="openAddLocation(null)">＋ 部屋を追加</button>
  </div></div>
  <div class="location-manage-list">${children(null).map((x,i)=>modeLocationRow(x,i,true)).join('')}</div>
- ${placeMode==='edit'?`<div class="manage-actions location-bulk-actions"><button class="btn secondary" onclick="deleteCheckedLocations()">チェックした項目を削除</button><button class="btn secondary" onclick="togglePlaceMode('normal')">キャンセル</button></div>`:''}`;
+ `;
   return;
  }
  const p=loc(currentPlace);if(!p){currentPlace=null;return renderPlaces()}
@@ -295,22 +299,23 @@ function renderPlaces(){
    <button class="btn secondary" onclick="deleteCurrentPlace()">場所を削除</button>
  </div>
  <div class="inline"><div class="section-title" style="margin-right:auto">下の階層</div><div class="manage-actions">
-   <button class="btn secondary" onclick="togglePlaceMode('edit')">編集</button>
+   <button class="btn secondary" onclick="togglePlaceMode(placeMode==='edit'?'normal':'edit')">${placeMode==='edit'?'キャンセル':'編集'}</button>
    <button class="btn" onclick="openAddLocation('${p.id}')">＋ 追加</button>
  </div></div>
  ${ch.length?`<div class="location-manage-list">${ch.map((x,i)=>modeLocationRow(x,i,false)).join('')}</div>
- ${placeMode==='edit'?`<div class="manage-actions location-bulk-actions"><button class="btn secondary" onclick="deleteCheckedLocations()">チェックした項目を削除</button><button class="btn secondary" onclick="togglePlaceMode('normal')">キャンセル</button></div>`:''}`:`<div class="empty-state">まだ下の階層がありません</div>`}
+ `:`<div class="empty-state">まだ下の階層がありません</div>`}
  <div class="section-title">この場所にある物</div>
  ${its.length?its.map(itemCard).join(''):`<div class="empty-state">この場所には登録された物がありません</div>`}`;
 }
 let placeMode='normal';
 function togglePlaceMode(mode){placeMode=(mode==='edit'?'edit':'normal');renderPlaces()}
 function modeLocationRow(x,i,isRoom){
- if(placeMode==='edit') return `<div class="location-manage-row edit-mode-row">
-   <label class="location-check"><input type="checkbox" class="location-delete-check" value="${escAttr(x.id)}"><span></span></label>
-   <button type="button" class="location-edit-target" onclick="openLocationEditor('${x.id}')">
-     <span>${icon(x.type)} ${esc(x.name)}${x.photo?' 📷':''}</span><span>編集 ›</span>
-   </button>
+ if(placeMode==='edit') return `<div class="location-manage-row location-admin-row">
+   <div class="location-admin-name">${icon(x.type)} ${esc(x.name)}${x.photo?' 📷':''}</div>
+   <div class="location-admin-actions">
+    <button type="button" class="btn secondary" onclick="openLocationEditor('${x.id}')">編集</button>
+    <button type="button" class="btn secondary" onclick="deleteLocations(['${x.id}'])">削除</button>
+   </div>
  </div>`;
  return `<div class="location-manage-row" draggable="true" ondragstart="startLocationDrag(event,'${x.id}')" ondragover="allowLocationDrop(event)" ondrop="dropLocation(event,'${x.id}')" ondragend="endLocationDrag(event)">
    <button type="button" class="location-open-target" onclick="openPlace('${x.id}')">
@@ -713,8 +718,11 @@ function openTagManager(){
  const rows=data.tags.map(t=>{
   const count=data.items.filter(i=>(i.tags||[]).includes(t)).length;
   return '<div class="check-row" style="justify-content:space-between;gap:12px">'+
-   '<span>'+esc(t)+(count?' <span class="small">（'+count+'件で使用中）</span>':'')+'</span>'+
-   '<button type="button" class="btn secondary tag-delete-button" data-tag="'+escAttr(t)+'">削除</button>'+
+   '<span style="min-width:0;overflow-wrap:anywhere">'+esc(t)+(count?' <span class="small">（'+count+'件で使用中）</span>':'')+'</span>'+
+   '<div style="display:flex;gap:6px;flex:none">'+
+    '<button type="button" class="btn secondary tag-edit-button" data-tag="'+escAttr(t)+'">編集</button>'+
+    '<button type="button" class="btn secondary tag-delete-button" data-tag="'+escAttr(t)+'">削除</button>'+
+   '</div>'+
   '</div>';
  }).join('');
  content.innerHTML=
@@ -723,6 +731,9 @@ function openTagManager(){
   (rows||'<div class="subtle">登録されているタグはありません。</div>')+
   '<div class="modal-actions"><button id="tagManagerClose" class="btn secondary" type="button">閉じる</button></div>';
  document.getElementById('tagManagerClose').onclick=closeModal;
+ content.querySelectorAll('.tag-edit-button').forEach(btn=>{
+  btn.onclick=()=>openTagEditor(btn.dataset.tag);
+ });
  content.querySelectorAll('.tag-delete-button').forEach(btn=>{
   btn.onclick=()=>{
    const tag=btn.dataset.tag;
@@ -736,6 +747,61 @@ function openTagManager(){
   };
  });
  lockPageForModal();overlay.classList.add('show');syncModalViewport();
+}
+function openTagEditor(oldTag){
+ if(!data.tags.includes(oldTag))return;
+ const content=document.getElementById('modalContent'),overlay=document.getElementById('modalOverlay');
+ if(!content||!overlay)return;
+ content.innerHTML=
+  '<h3>タグ名を編集</h3>'+
+  '<div class="subtle">名称を修正すると、このタグを使用している登録済みの物にも反映されます。</div>'+
+  '<div class="form"><label for="tagEditName">タグの名称</label>'+
+  '<input id="tagEditName" type="text" value="'+escAttr(oldTag)+'" autocomplete="off">'+
+  '<div id="tagEditError" class="small"></div></div>'+
+  '<div class="modal-actions">'+
+   '<button id="tagEditCancel" class="btn secondary" type="button">キャンセル</button>'+
+   '<button id="tagEditSave" class="btn" type="button">保存</button>'+
+  '</div>';
+ document.getElementById('tagEditCancel').onclick=()=>openTagManager();
+ document.getElementById('tagEditSave').onclick=()=>saveTagRename(oldTag);
+ lockPageForModal();overlay.classList.add('show');syncModalViewport();
+ const input=document.getElementById('tagEditName');
+ if(input){
+  requestAnimationFrame(()=>{
+   try{input.focus({preventScroll:true})}catch(e){input.focus()}
+   input.select();syncModalViewport();
+  });
+  input.onkeydown=e=>{
+   if(e.key==='Enter'){e.preventDefault();saveTagRename(oldTag)}
+   else if(e.key==='Escape'){e.preventDefault();openTagManager()}
+  };
+ }
+}
+function saveTagRename(oldTag){
+ const input=document.getElementById('tagEditName');
+ const error=document.getElementById('tagEditError');
+ const saveButton=document.getElementById('tagEditSave');
+ if(!input||!data.tags.includes(oldTag))return;
+ const newTag=input.value.trim();
+ if(!newTag){if(error)error.textContent='名称は空欄にできません。';input.focus({preventScroll:true});return}
+ if(newTag!==oldTag&&data.tags.includes(newTag)){
+  if(error)error.textContent='同じ名前のタグがすでにあります。別の名称を入力してください。';
+  input.focus({preventScroll:true});input.select();return;
+ }
+ if(newTag===oldTag){openTagManager();return}
+ if(saveButton){saveButton.disabled=true;saveButton.textContent='保存中…'}
+ const index=data.tags.indexOf(oldTag);
+ data.tags[index]=newTag;
+ data.items.forEach(item=>{item.tags=(item.tags||[]).map(tag=>tag===oldTag?newTag:tag)});
+ const addTags=document.getElementById('itemTags');
+ if(addTags)addTags.value=(addTags.value||'').split('|').map(tag=>tag===oldTag?newTag:tag).join('|');
+ const editTags=document.getElementById('editTags');
+ if(editTags)editTags.value=(editTags.value||'').split('|').map(tag=>tag===oldTag?newTag:tag).join('|');
+ save();
+ closeModal();
+ renderAddTags();
+ if(document.getElementById('editTagChips'))renderEditTags();
+ showToast('タグ名を変更しました。');
 }
 function deleteTag(tag){
  if(!data.tags.includes(tag))return;
