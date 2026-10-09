@@ -295,12 +295,12 @@ function renderPlaces(){
  const p=loc(currentPlace);if(!p){currentPlace=null;return renderPlaces()}
  const ch=children(p.id),its=itemsAt(p.id),photo=photoSrc(p.photo)?`<img class="location-photo" src="${photoSrc(p.photo)}">`:'';
  el.innerHTML=`<button class="back" onclick="goBackPlace()">← 戻る</button>
- <div class="section-title">${icon(p.type)} ${esc(p.name)}</div>${photo}
+ <div class="inline place-heading"><div class="section-title" style="margin-right:auto">${icon(p.type)} ${esc(p.name)}</div>${p.type==='room'?`<button class="btn secondary" type="button" onclick="openLocationEditor('${p.id}')">部屋を管理</button>`:''}</div>${photo}
  <div class="inline"><div class="section-title" style="margin-right:auto">下の階層</div><div class="manage-actions">
-   <button class="btn secondary" onclick="togglePlaceMode(placeMode==='edit'?'normal':'edit')">${placeMode==='edit'?'管理を終了':'部屋を管理'}</button>
+   <button class="btn secondary" onclick="togglePlaceMode(placeMode==='edit'?'normal':'edit')">${placeMode==='edit'?'管理を終了':'階層を管理'}</button>
    <button class="btn" onclick="openAddLocation('${p.id}')">＋ 追加</button>
  </div></div>
- ${placeMode==='edit'? `<div class="location-manage-list">${modeLocationRow(p,0,false)}${ch.map((x,i)=>modeLocationRow(x,i,false)).join('')}</div>`:
+ ${placeMode==='edit'? `<div class="location-manage-list">${ch.map((x,i)=>modeLocationRow(x,i,false)).join('')}</div>`:
  (ch.length?`<div class="location-manage-list">${ch.map((x,i)=>modeLocationRow(x,i,false)).join('')}</div>`:`<div class="empty-state">まだ下の階層がありません</div>`)}
  <div class="section-title">この場所にある物</div>
  ${its.length?its.map(itemCard).join(''):`<div class="empty-state">この場所には登録された物がありません</div>`}`;
@@ -466,8 +466,8 @@ function openLocationEditor(id){
  if(!content||!overlay)return;
  const currentPhoto=photoSrc(p.photo);
  content.innerHTML=
-  '<h3>場所を編集</h3>'+
-  '<div class="subtle">この階層の名前と写真を変更できます。</div>'+
+  '<h3>'+(p.type==='room'?'部屋を編集':'場所を編集')+'</h3>'+
+  '<div class="subtle">'+(p.type==='room'?'部屋の名称と写真を変更できます。':'この階層の名前と写真を変更できます。')+'</div>'+
   '<div class="form">'+
    '<label for="locationEditName">場所の名称</label>'+
    '<input id="locationEditName" type="text" value="'+escAttr(p.name)+'" autocomplete="off">'+
