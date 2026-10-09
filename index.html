@@ -300,8 +300,7 @@ function renderPlaces(){
    <button class="btn secondary" onclick="togglePlaceMode(placeMode==='edit'?'normal':'edit')">${placeMode==='edit'?'管理を終了':'階層を管理'}</button>
    <button class="btn" onclick="openAddLocation('${p.id}')">＋ 追加</button>
  </div></div>
- ${placeMode==='edit'? `<div class="location-manage-list">${ch.map((x,i)=>modeLocationRow(x,i,false)).join('')}</div>`:
- (ch.length?`<div class="location-manage-list">${ch.map((x,i)=>modeLocationRow(x,i,false)).join('')}</div>`:`<div class="empty-state">まだ下の階層がありません</div>`)}
+ ${ch.length?`<div class="location-manage-list">${ch.map((x,i)=>modeLocationRow(x,i,false)).join('')}</div>`:`<div class="empty-state">まだ下の階層がありません</div>`}
  <div class="section-title">この場所にある物</div>
  ${its.length?its.map(itemCard).join(''):`<div class="empty-state">この場所には登録された物がありません</div>`}`;
 }
