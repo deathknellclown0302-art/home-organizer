@@ -746,7 +746,10 @@ function openTagManager(){
    const list=[...data.tags],sourceIndex=list.indexOf(from),targetIndex=list.indexOf(to);
    if(sourceIndex<0||targetIndex<0)return;
    list.splice(sourceIndex,1);list.splice(targetIndex,0,from);
-   data.tags=list;save();openTagManager();
+   data.tags=list;save();
+   renderAddTags();
+   renderSearch();
+   openTagManager();
   });
   row.addEventListener('dragend',()=>{draggedTag=null;row.classList.remove('dragging')});
  });
